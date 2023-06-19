@@ -2,7 +2,7 @@ import os
 from flask import Flask, jsonify, request
 from flask_migrate import Migrate
 from dotenv import load_dotenv
-from models import db, Todo
+from models import db, Todo, User, Profile
 
 load_dotenv()
 
@@ -26,7 +26,7 @@ def list_todos():
     todos = list(map(lambda todo: todo.serialize(), todos)) # [{"id": 1}, {"id": 2}]
     print(todos)
     
-    return jsonify(todos)
+    return jsonify(todos), 200
 
 @app.route('/api/todos', methods=['POST'])
 def add_todo():
@@ -35,9 +35,10 @@ def add_todo():
     todo = Todo()
     todo.title = data['title']
     todo.done = data['done']
+    todo.users_id = data['users_id']
     todo.save()
     
-    return jsonify(todo.serialize()), 201
+    return jsonify(todo.serialize_with_user()), 201
 
 @app.route('/api/todos/<int:id>', methods=['DELETE'])
 def remove_todo(id):
@@ -50,6 +51,45 @@ def remove_todo(id):
     
     return jsonify({ "id": id }), 200
 
+
+
+@app.route('/api/users', methods=['GET'])
+def list_users():
+    users = User.query.all() # [<User 1>, <User 2>]
+    users = list(map(lambda user: user.serialize_with_full_info(), users)) # [{"id": 1}, {"id": 2}]
+    
+    return jsonify(users), 200
+
+@app.route('/api/users', methods=['POST'])
+def add_user():
+    
+    username = request.json.get('username')
+    password = request.json.get('password')
+    biography = request.json.get('biography', '')
+    '''
+    user = User()
+    user.username = username
+    user.password = password
+    user.save()
+    
+    profile = Profile()
+    profile.biography = biography
+    profile.users_id = user.id
+    profile.save()
+    '''
+    
+    user = User()
+    user.username = username
+    user.password = password
+    
+    profile = Profile()
+    profile.biography = biography
+
+    user.profile = profile # Asociamos a traves del relationship
+    user.save()
+    
+    return jsonify(user.serialize_with_full_info()), 201
+    
 # crear tablas al iniciar la aplicacion
 with app.app_context():
     db.create_all()
