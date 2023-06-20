@@ -2,7 +2,7 @@ import os
 from flask import Flask, jsonify, request
 from flask_migrate import Migrate
 from dotenv import load_dotenv
-from models import db, Todo, User, Profile
+from models import db, Todo, User, Profile, Role
 
 load_dotenv()
 
@@ -66,6 +66,7 @@ def add_user():
     username = request.json.get('username')
     password = request.json.get('password')
     biography = request.json.get('biography', '')
+    roles = request.json.get('roles')
     '''
     user = User()
     user.username = username
@@ -85,11 +86,27 @@ def add_user():
     profile = Profile()
     profile.biography = biography
 
+    for roles_id in roles:
+        role = Role.query.get(roles_id)
+        if role: user.roles.append(role)
+    
     user.profile = profile # Asociamos a traves del relationship
     user.save()
     
     return jsonify(user.serialize_with_full_info()), 201
-    
+
+
+@app.route('/api/roles/<int:id>', methods=['GET'])
+def show_role(id):
+    role = Role.query.get(id)
+    users = list(map(lambda user: user.username, role.users))
+    info = {
+        "role": role.serialize()
+    }
+    info["users"] = users
+   
+    return jsonify(info), 200
+
 # crear tablas al iniciar la aplicacion
 with app.app_context():
     db.create_all()
